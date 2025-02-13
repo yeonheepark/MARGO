@@ -10,9 +10,6 @@ library(randomForest)
 library(RSNNS)
 
 
-## Set the seed
-set.seed(840130)
-
 ## Set cores for parallel processing
 n.cores <- parallel::detectCores() - 1
 my.cluster <- parallel::makeCluster(
@@ -39,11 +36,9 @@ futbound <- bounds$lower.bounds
 px1 <- 0.5
 
 ## Number of simulations
-n_sim <- 1000
+n_sim <- 5# 1000
 
-## Define number of sampling and burn for Gibb's sampling and testing alternative
-nsample = 10000
-nburn = 5000
+## testing alternative
 alternative = "greater"
 correct = FALSE
 
@@ -56,19 +51,18 @@ train_param <- trainControl(method = "cv",
 ## Set start time for parallel processing run
 start_time <- Sys.time()
 
-## Run simulations for different CARAML with OW methods ADA, SVM, KNN, NN and RF 
+## Run simulations for different MLAR with OW  
 ### and append to final dataframe 
 
 Scenario = "Scenario7"
 
-result_p <- rep(NA,5)
-result_diff <- rep(NA,5)
-result_nf <- rep(NA,5)
-result_estp <- rep(NA,5)
+result_p <- rep(NA,4)
+result_diff <- rep(NA,4)
+result_nf <- rep(NA,4)
+result_estp <- rep(NA,4)
 
 result <- foreach(i = 1:n_sim, .combine = 'cbind',.packages = c('LearnBayes','dplyr','caret','PSweight')) %dorng% simulate(
-  prior_diag = 2,
-  rndmethod = "ADA",
+  rndmethod = "SVM",
   betavec = c(0,0,0),
   gammavec = c(0.5,0,0),
   train_control = train_param)
@@ -83,8 +77,7 @@ result_nf[1] <- mean(result[4,])
 result_estp[1] <- earlyst
 
 result <- foreach(i = 1:n_sim, .combine = 'cbind',.packages = c('LearnBayes','dplyr','caret','PSweight')) %dorng% simulate(
-  prior_diag = 2,
-  rndmethod = "SVM",
+  rndmethod = "KNN",
   betavec = c(0,0,0),
   gammavec = c(0.5,0,0),
   train_control = train_param)
@@ -99,8 +92,7 @@ result_nf[2] <- mean(result[4,])
 result_estp[2] <- earlyst
 
 result <- foreach(i = 1:n_sim, .combine = 'cbind',.packages = c('LearnBayes','dplyr','caret','PSweight')) %dorng% simulate(
-  prior_diag = 2,
-  rndmethod = "KNN",
+  rndmethod = "RF",
   betavec = c(0,0,0),
   gammavec = c(0.5,0,0),
   train_control = train_param)
@@ -115,8 +107,7 @@ result_nf[3] <- mean(result[4,])
 result_estp[3] <- earlyst
 
 result <- foreach(i = 1:n_sim, .combine = 'cbind',.packages = c('LearnBayes','dplyr','caret','PSweight')) %dorng% simulate(
-  prior_diag = 2,
-  rndmethod = "RF",
+  rndmethod = "NN",
   betavec = c(0,0,0),
   gammavec = c(0.5,0,0),
   train_control = train_param)
@@ -130,23 +121,7 @@ result_diff[4] <- mean(result[3,])
 result_nf[4] <- mean(result[4,])
 result_estp[4] <- earlyst
 
-result <- foreach(i = 1:n_sim, .combine = 'cbind',.packages = c('LearnBayes','dplyr','caret','PSweight')) %dorng% simulate(
-  prior_diag = 2,
-  rndmethod = "NN",
-  betavec = c(0,0,0),
-  gammavec = c(0.5,0,0),
-  train_control = train_param)
-
-attr(result, 'rng') <- NULL
-earlyst1 <- sum(result[1,]==1) + sum(result[1,] == 2)
-earlyst2 <- sum(result[1,]==1) + sum(result[1,] == 2) + sum(result[1,] ==3)
-earlyst <- earlyst1/earlyst2
-result_p[5] <- sum(result[2,],na.rm=T)/earlyst2
-result_diff[5] <- mean(result[3,])
-result_nf[5] <- mean(result[4,])
-result_estp[5] <- earlyst
-
-output <- data.frame(Scenario = rep(Scenario,5),ML = c("ADA","SVM","KNN","RF","NN"),RejP = result_p,DiffA = result_diff, NF = result_nf,
+output <- data.frame(Scenario = rep(Scenario,4),ML = c("SVM","KNN","RF","NN"),RejP = result_p,DiffA = result_diff, NF = result_nf,
                      EarlyStop = result_estp)
 
 output
