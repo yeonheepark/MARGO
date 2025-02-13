@@ -1,5 +1,5 @@
-## Define Simulation Function for parallel processing - currently just take argument for informative or vague prior
-simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
+## Define Simulation Function for parallel processing 
+simulate <- function(rndmethod,betavec,gammavec,train_control){
   ## Sample outcome based on covariates from Bernoulli distribution
   x1all <- rbinom(N_total, 1, px1)
   x2all <- rbinom(N_total, 1, 0.5)
@@ -32,20 +32,6 @@ simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
   ## Define data based on covariate and treatment indicator
   xdata1 <- cbind(onevec, x1, x2, G1, G1*x1, G1*x2)
   
-  ## Fit probit model based on covariate and treatment against the success or failure of treatment
-  fit <- glm(y1 ~ xdata1-1, family = binomial(link = probit))
-  
-  ## Define theta and do Gibb's sampling based on model coefficients with informative or vague prior
-  mle_theta <- fit$coefficients
-  priorb = list(beta = rep(0, length(mle_theta)), 
-                P = diag(rep(prior_diag, length(mle_theta))))
-  res1 = bayes.probit(y1, xdata1, nsample, priorb)
-  
-  #### Gibb's sampling ####
-  resbetag <- res1$beta[-(1:nburn),]
-  resbeta <- res1$beta[-(1:nburn),1:pn]
-  resbetahat <- apply(resbetag, 2, mean)
-  
   ## Define difference of patients for Treatment A v B
   ndiff1 <- length(which(G1 == 1)) - length(which(G1 == 0)) 
   
@@ -76,7 +62,6 @@ simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
   ml.data <- select(ml.data,-3)
   
   ## Define test for superior or futility for interim 1 based on chi square test if treatment proportion is greater than control proportion
-  ### and set p value to 1 if not
   if (all(data_total$time == 1) | N_total/block_number < 2) {
     if (((ctrl_prop - trt_prop >= 0) & alternative == "less") | ((trt_prop - ctrl_prop >= 0) & alternative == "greater")) {
       p.val1 <- chisq.test(data_total$treatment, data_total$outcome,correct = correct)$p.value/2
@@ -122,8 +107,7 @@ simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
     ## Define G2 for treatment indicator for A or B
     G2 <- c()
     
-    ## Randomize patients into treatment categories based on probit model using initial cohort data
-    ### and the different CARA methods
+    ## Randomize patients into treatment categories 
     if (rndmethod == "SVM") {
       svm_grid <- expand.grid(C = c(2^(-5:5)), sigma = c(2^(-15:-7)))
       alloc_model <- train(outcome ~., data = ml.data, 
@@ -198,20 +182,6 @@ simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
     xdata2 <- rbind(xdata1, xdata22)
     y2a <- c(y1, y2)
     G2a <- c(G1, G2)
-    
-    ## Fit probit model based on covariates and treatment against the success or failure of treatment
-    fit2 <- glm(y2a ~ xdata2-1, family = binomial(link = probit))
-    
-    ## Define theta and do Gibb's sampling based on model coefficients with informative or vague prior
-    mle_theta2 <- fit2$coefficients
-    priorb = list(beta = rep(0, length(mle_theta2)), 
-                  P = diag(rep(prior_diag, length(mle_theta2))))
-    res2 = bayes.probit(y2a, xdata2, nsample, priorb)
-    
-    #### Gibb's sampling ####
-    resbetag2 <- res2$beta[-(1:nburn),]
-    resbeta2 <- res2$beta[-(1:nburn),1:pn]
-    resbetahat2 <- apply(resbetag2, 2, mean)
     
     ## Define difference of patients for Treatment A v B
     ndiff2 <- length(which(G2 == 1)) - length(which(G2 == 0)) 
@@ -309,8 +279,7 @@ simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
       ## Define G3 for treatment indicator for A or B
       G3 <- c()
       
-      ## Randomize patients into treatment categories based on probit model using initial cohort data
-      ### and the different CARA methods
+      ## Randomize patients into treatment categories 
       if (rndmethod == "SVM") {
         svm_grid <- expand.grid(C = c(2^(-5:5)), sigma = c(2^(-15:-7)))
         alloc_model <- train(outcome ~., data = ml.data, 
@@ -387,19 +356,6 @@ simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
       y3a <- c(y1, y2, y3)
       G3a <- c(G1, G2, G3)
       
-      ## Fit probit model based on covariates and treatment against the success or failure of treatment
-      fit3 <- glm(y3a ~ xdata3-1, family = binomial(link = probit))
-      
-      ## Define theta and do Gibb's sampling based on model coefficients with informative or vague prior
-      mle_theta3 <- fit3$coefficients
-      priorb = list(beta = rep(0, length(mle_theta3 )), 
-                    P = diag(rep(prior_diag, length(mle_theta3 ))))
-      res3 = bayes.probit(y3a, xdata3, nsample, priorb)
-      
-      #### Gibb's sampling ####
-      resbetag3 <- res3$beta[-(1:nburn),]
-      resbeta3 <- res3$beta[-(1:nburn),1:pn]
-      
       ## Define difference of patients for Treatment A v B
       ndiff3 <- length(which(G3 == 1)) - length(which(G3 == 0)) 
       
@@ -469,6 +425,6 @@ simulate <- function(prior_diag,rndmethod,betavec,gammavec,train_control){
       }
     }
   }
-  ### Return values of interim indicator, power, allocation difference, number of failures, p value and the test statistic
+  ### Return values of interim indicator, power, allocation difference, number of failures
   return(c(ind,ind.power,ndiff,nf))
 }
